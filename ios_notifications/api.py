@@ -61,8 +61,6 @@ class DeviceResource(BaseResource):
         """
         data = simplejson.loads(request.raw_post_data)
         
-        print data
-        
         devices = Device.objects.filter(token=data.get('token'),
                                         service__id=int(data.get('service', 0)))
         if devices.exists():
@@ -74,6 +72,7 @@ class DeviceResource(BaseResource):
         if form.is_valid():
             device = form.save(commit=False)
             device.is_active = True
+            device.save()
             if request.user:
                 device.users.add(request.user)
             device.save()
@@ -99,8 +98,6 @@ class DeviceResource(BaseResource):
                                 (kwargs['token'], kwargs['service__id'])}, status=400)
         
         data = simplejson.loads(request.raw_post_data)
-
-        print data
 
         if 'users' in data:
             try:
