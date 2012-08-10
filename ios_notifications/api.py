@@ -59,7 +59,9 @@ class DeviceResource(BaseResource):
         Creates a new device or updates an existing one to `is_active=True`.
         Expects two non-options POST parameters: `token` and `service`.
         """
-        data = simplejson.loads(request.POST['data'])
+        data = simplejson.loads(request.raw_post_data)
+        
+        print data
         
         devices = Device.objects.filter(token=data.get('token'),
                                         service__id=int(data.get('service', 0)))
@@ -96,7 +98,9 @@ class DeviceResource(BaseResource):
             return JSONResponse({'error': 'Device with token %s and service %s does not exist' %
                                 (kwargs['token'], kwargs['service__id'])}, status=400)
         
-        data = simplejson.loads(request.PUT['data'])
+        data = simplejson.loads(request.raw_post_data)
+
+        print data
 
         if 'users' in data:
             try:
