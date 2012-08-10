@@ -6,6 +6,7 @@ from django.shortcuts import get_object_or_404
 from django.db import IntegrityError
 from django.contrib.auth.models import User
 from django.utils.decorators import method_decorator
+from django.utils import simplejson
 
 from ios_notifications.models import Device
 from ios_notifications.forms import DeviceForm
@@ -58,17 +59,21 @@ class DeviceResource(BaseResource):
         Creates a new device or updates an existing one to `is_active=True`.
         Expects two non-options POST parameters: `token` and `service`.
         """
-        devices = Device.objects.filter(token=request.POST.get('token'),
-                                        service__id=int(request.POST.get('service', 0)))
+        data = simplejson.loads(request.POST['data'])
+        
+        devices = Device.objects.filter(token=data.get('token'),
+                                        service__id=int(data.get('service', 0)))
         if devices.exists():
             device = devices.get()
             device.is_active = True
             device.save()
             return JSONResponse(device)
-        form = DeviceForm(request.POST)
+        form = DeviceForm(data)
         if form.is_valid():
             device = form.save(commit=False)
             device.is_active = True
+            if request.user:
+                device.users.add(request.user)
             device.save()
             return JSONResponse(device, status=201)
         return JSONResponse(form.errors, status=400)
@@ -90,17 +95,19 @@ class DeviceResource(BaseResource):
         except Device.DoesNotExist:
             return JSONResponse({'error': 'Device with token %s and service %s does not exist' %
                                 (kwargs['token'], kwargs['service__id'])}, status=400)
+        
+        data = simplejson.loads(request.PUT['data'])
 
-        if 'users' in request.PUT:
+        if 'users' in data:
             try:
-                user_ids = request.PUT.getlist('users')
+                user_ids = data.getlist('users')
                 device.users.remove(*[u.id for u in device.users.all()])
                 device.users.add(*User.objects.filter(id__in=user_ids))
             except (ValueError, IntegrityError) as e:
                 return JSONResponse({'error': e.message}, status=400)
-            del request.PUT['users']
+            del data['users']
 
-        for key, value in request.PUT.items():
+        for key, value in data.items():
             setattr(device, key, value)
         device.save()
 
